@@ -16,6 +16,7 @@ from schemas import (
     ForecastDraft,
     MarketProbability,
     PredictionResponse,
+    floor_for_outcomes,
     outcome_labels,
 )
 
@@ -84,6 +85,8 @@ def _safe_final(
     text: str, event: EventRequest, drafts: list[ForecastDraft]
 ) -> PredictionResponse:
     outcomes = outcome_labels(event)
+    floor = floor_for_outcomes(len(outcomes))
+    ceiling = 1.0 - floor
     try:
         m = _JSON_RE.search(text or "")
         if not m:
@@ -99,10 +102,10 @@ def _safe_final(
             if p > 1.0:
                 p = p / 100.0
             if market in outcomes:
-                probs[market] = max(0.01, min(0.99, p))
+                probs[market] = max(floor, min(ceiling, p))
         if probs:
             for o in outcomes:
-                probs.setdefault(o, 0.01)
+                probs.setdefault(o, floor)
             total = sum(probs.values())
             return PredictionResponse(
                 probabilities=[

@@ -15,10 +15,17 @@ the benchmark price and yield zero edge.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 
 import httpx
+from tenacity import (
+    AsyncRetrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from schemas import EventRequest, ResearchResult
 from tools.base import register
@@ -26,6 +33,10 @@ from tools.base import register
 log = logging.getLogger(__name__)
 
 KALSHI_BASE = "https://api.elections.kalshi.com/trade-api/v2"
+
+
+class _KalshiRateLimited(Exception):
+    """Raised on HTTP 429 so tenacity can retry with exponential backoff."""
 
 
 def _series_from_ticker(event_ticker: str) -> str | None:
@@ -38,33 +49,59 @@ def _series_from_ticker(event_ticker: str) -> str | None:
     return None
 
 
+async def _kalshi_get(client: httpx.AsyncClient, params: dict) -> dict:
+    """GET /markets with retry+backoff on 429.
+
+    Backoff: 2s, 4s, 8s (capped at 10s). Gives up after 4 attempts and
+    re-raises so the caller surfaces the failure.
+    """
+    async for attempt in AsyncRetrying(
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(_KalshiRateLimited),
+        reraise=True,
+    ):
+        with attempt:
+            r = await client.get(f"{KALSHI_BASE}/markets", params=params)
+            if r.status_code == 429:
+                retry_after = r.headers.get("Retry-After", "unset")
+                log.warning("Kalshi 429 (Retry-After=%s); will back off", retry_after)
+                raise _KalshiRateLimited(retry_after)
+            r.raise_for_status()
+            return r.json()
+    return {}  # unreachable; satisfies type checker
+
+
 async def _fetch_series_markets(
     client: httpx.AsyncClient, series_ticker: str, limit: int = 100
 ) -> list[dict]:
-    r = await client.get(
-        f"{KALSHI_BASE}/markets",
+    payload = await _kalshi_get(
+        client,
         params={"series_ticker": series_ticker, "status": "open", "limit": limit},
     )
-    r.raise_for_status()
-    return r.json().get("markets", [])
+    return payload.get("markets", [])
 
 
 async def _paginate_open_markets(
-    client: httpx.AsyncClient, max_markets: int = 500
+    client: httpx.AsyncClient, max_markets: int = 200
 ) -> list[dict]:
+    """Page through open markets. Default depth dropped from 500 to 200 — five
+    paginated GETs back-to-back kept tripping the rate limit and the additional
+    300 markets rarely contained matches anyway.
+    """
     out: list[dict] = []
     cursor: str | None = None
     while len(out) < max_markets:
         params: dict = {"status": "open", "limit": 100}
         if cursor:
             params["cursor"] = cursor
-        r = await client.get(f"{KALSHI_BASE}/markets", params=params)
-        r.raise_for_status()
-        payload = r.json()
+        payload = await _kalshi_get(client, params=params)
         out.extend(payload.get("markets", []))
         cursor = payload.get("cursor")
         if not cursor:
             break
+        # Tiny inter-page pause to be polite under rate limits.
+        await asyncio.sleep(0.2)
     return out[:max_markets]
 
 

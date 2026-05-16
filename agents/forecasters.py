@@ -11,7 +11,7 @@ import logging
 import re
 
 from llm_clients import CLAUDE_EFFORT, GPT, OPUS, claude_complete, gpt_complete, openai_client
-from schemas import EventRequest, ForecastDraft, MarketProbability, outcome_labels
+from schemas import EventRequest, ForecastDraft, MarketProbability, floor_for_outcomes, outcome_labels
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +59,8 @@ _JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 def _parse_forecast(text: str, event: EventRequest, model: str) -> ForecastDraft:
     outcomes = outcome_labels(event)
+    floor = floor_for_outcomes(len(outcomes))
+    ceiling = 1.0 - floor
     m = _JSON_RE.search(text or "")
     if not m:
         raise ValueError("no JSON in forecast output")
@@ -75,10 +77,11 @@ def _parse_forecast(text: str, event: EventRequest, model: str) -> ForecastDraft
         if p > 1.0:
             p = p / 100.0
         if market in outcomes:
-            probs[market] = max(0.01, min(0.99, p))
+            probs[market] = max(floor, min(ceiling, p))
 
+    # Outcomes the model omitted are presumed near-zero (use floor, not uniform).
     for o in outcomes:
-        probs.setdefault(o, 1.0 / len(outcomes))
+        probs.setdefault(o, floor)
 
     total = sum(probs.values()) or 1.0
     normalized = [
