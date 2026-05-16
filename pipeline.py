@@ -59,7 +59,7 @@ async def _do_research(event: EventRequest, steps, per_tool_timeout_s: float = 9
     return results
 
 
-async def run_pipeline(event: EventRequest) -> PredictionResponse:
+async def run_pipeline(event: EventRequest) -> tuple[PredictionResponse, dict]:
     t0 = time.monotonic()
     trace: dict = {"event": event.model_dump(), "stages": {}}
 
@@ -107,4 +107,4 @@ async def run_pipeline(event: EventRequest) -> PredictionResponse:
     if path:
         log.info("trace written to %s", path)
 
-    return final
+    return final, trace
