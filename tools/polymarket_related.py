@@ -20,11 +20,18 @@ GAMMA_BASE = "https://gamma-api.polymarket.com"
 
 
 async def _fetch_pool(
-    client: httpx.AsyncClient, max_markets: int = 500
+    client: httpx.AsyncClient, max_markets: int = 1000
 ) -> list[dict]:
+    """Pull active markets sorted by 24h volume descending.
+
+    Polymarket's default sort is by creation date which surfaces low-volume
+    new listings first — exactly the wrong order. Sorting by volume24hr ensures
+    we see the high-signal markets in our first few pages. Bumped depth from
+    500 -> 1000 so we have a better chance of finding the relevant market.
+    """
     out: list[dict] = []
     offset = 0
-    page_size = 100
+    page_size = 200
     while len(out) < max_markets:
         r = await client.get(
             f"{GAMMA_BASE}/markets",
@@ -33,6 +40,8 @@ async def _fetch_pool(
                 "closed": "false",
                 "limit": page_size,
                 "offset": offset,
+                "order": "volume24hr",
+                "ascending": "false",
             },
         )
         r.raise_for_status()
@@ -112,8 +121,17 @@ async def run(event: EventRequest, args: dict, timeout_s: float) -> ResearchResu
             slug = m.get("slug") or ""
             if slug in seen_slugs:
                 continue
+            # Check question, slug, description, group_slug, and tag fields —
+            # keywords appear in different places depending on the market type.
             question = (m.get("question") or "").lower()
-            if kw_lower not in question and kw_lower not in slug.lower():
+            description = (m.get("description") or "").lower()
+            group_slug = (m.get("groupItemTitle") or m.get("group_slug") or "").lower()
+            tags = " ".join(
+                (t.get("label") if isinstance(t, dict) else str(t)) or ""
+                for t in (m.get("tags") or [])
+            ).lower()
+            haystack = " | ".join([question, slug.lower(), description, group_slug, tags])
+            if kw_lower not in haystack:
                 continue
             items.append(_summarize(m, keyword=kw))
             seen_slugs.add(slug)

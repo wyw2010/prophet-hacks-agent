@@ -35,6 +35,17 @@ Your job is to produce the FINAL probability distribution. You can:
 - Pull toward the dissenting forecast if its reasoning held up better.
 - Move BEYOND both forecasts if the critique exposes a flaw they share.
 
+OUTCOME INTERPRETATION (CRITICAL)
+Outcomes are mutually exclusive and sum to 1.0. For threshold-style outcomes \
+("Above X%", "Below X", "At least N"), each is a BUCKET — the winning outcome \
+is the one whose threshold is the highest value ≤ the resolved actual. \
+Concentrate probability on the bucket the resolved value will land in, NOT a \
+flat decreasing distribution.
+
+If the two upstream forecasts disagree on this — e.g., one shows a flat \
+decreasing pattern (cumulative interpretation) and the other concentrates on \
+one bucket — the concentrated one is correct. Trust the bucket interpretation.
+
 CALIBRATION DISCIPLINE
 - Probabilities must sum to 1.0 and use the EXACT outcome labels.
 - Prefer the cross-market consensus unless the evidence brief provides specific \
@@ -156,7 +167,7 @@ async def aggregate(
             model=OPUS,
             system=SYSTEM,
             user=_user_prompt(event, brief, drafts, critique),
-            max_tokens=2000,
+            max_tokens=4000,
             effort=CLAUDE_EFFORT,
         )
         return _safe_final(text, event, drafts)

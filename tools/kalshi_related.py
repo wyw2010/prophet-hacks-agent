@@ -119,6 +119,20 @@ def _summarize_market(m: dict, keyword: str | None = None) -> dict:
     }
 
 
+def _has_signal(m: dict) -> bool:
+    """Skip markets that have no useful price OR volume signal — they're noise.
+
+    Common case: brand-new series markets where Kalshi has listed the contract
+    but no one's traded yet (volume=0, yes_ask=null). Returning these to the
+    forecaster just dilutes the brief.
+    """
+    yes_price = m.get("yes_ask") if m.get("yes_ask") is not None else m.get("last_price")
+    has_price = yes_price is not None
+    has_volume = (m.get("volume") or 0) > 0
+    has_oi = (m.get("open_interest") or 0) > 0
+    return has_price or has_volume or has_oi
+
+
 @register(
     name="kalshi_related",
     description=(
@@ -161,14 +175,20 @@ async def run(event: EventRequest, args: dict, timeout_s: float) -> ResearchResu
                 notes.append(f"series {series}: {exc}")
                 continue
             kept = 0
+            skipped_no_signal = 0
             for m in markets:
                 if m.get("event_ticker") == exclude_event:
+                    continue
+                if not _has_signal(m):
+                    skipped_no_signal += 1
                     continue
                 items.append(_summarize_market(m, keyword=f"series:{series}"))
                 kept += 1
                 if kept >= limit_per_source:
                     break
-            notes.append(f"series {series}: {kept} markets")
+            notes.append(
+                f"series {series}: {kept} markets (skipped {skipped_no_signal} no-signal)"
+            )
 
         if keywords:
             try:
@@ -185,6 +205,8 @@ async def run(event: EventRequest, args: dict, timeout_s: float) -> ResearchResu
                     title = (m.get("title") or "").lower()
                     ticker = (m.get("ticker") or "").lower()
                     if kw_lower not in title and kw_lower not in ticker:
+                        continue
+                    if not _has_signal(m):
                         continue
                     items.append(_summarize_market(m, keyword=kw))
                     kept += 1

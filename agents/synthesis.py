@@ -15,6 +15,13 @@ SYSTEM = """You are the research synthesizer for a forecasting agent.
 You receive raw research output from multiple tools and produce a structured \
 evidence brief that the forecaster can act on.
 
+OUTCOME INTERPRETATION
+Outcomes are mutually exclusive — exactly one will resolve true. For \
+threshold-style outcomes ("Above X%", "Below X", "At least N"), each is a \
+BUCKET: the winning outcome is the one whose threshold is the highest value \
+≤ the resolved actual. When describing directional leans, anchor on the BUCKET \
+each outcome represents, not cumulative probabilities.
+
 OUTPUT FORMAT (markdown, no JSON wrapper):
 
 # Event

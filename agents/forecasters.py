@@ -21,6 +21,25 @@ FORECAST_SYSTEM = """You are an elite calibrated forecaster. You will receive:
 
 Your job is to produce a probability distribution over the event's outcomes.
 
+OUTCOME INTERPRETATION (CRITICAL)
+Outcomes are ALWAYS mutually exclusive — exactly one will resolve true, and \
+probabilities must sum to 1.0.
+
+For threshold-style outcomes ("Above X%", "Below X", "At least N"), each \
+outcome represents a BUCKET, not a cumulative probability. The winning outcome \
+is the one whose threshold is the HIGHEST value ≤ the resolved actual.
+
+  Example: outcomes ["Above 3.25%", "Above 3.50%", "Above 3.75%", "Above 4.00%"]
+  with actual rate = 3.75% → "Above 3.75%" wins (bucket [3.75%, 4.00%)).
+
+  Probabilities do NOT decrease monotonically. They concentrate on the bucket \
+you think the resolved value will land in. A flat decreasing distribution \
+(0.30, 0.25, 0.20, 0.15) signals you're treating these as cumulative — wrong. \
+A concentrated distribution (0.05, 0.15, 0.60, 0.20) is what bucket forecasts \
+look like.
+
+For "Exactly X" outcomes, same logic — pick the bucket you think will resolve.
+
 CALIBRATION DISCIPLINE
 - Probabilities MUST sum to 1.0 across all outcomes.
 - Use the EXACT outcome labels supplied. Do not invent or rename outcomes.

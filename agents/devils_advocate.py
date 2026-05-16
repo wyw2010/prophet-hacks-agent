@@ -52,6 +52,6 @@ async def critique(
         model=OPUS,
         system=SYSTEM,
         user=_user_prompt(event, brief, drafts),
-        max_tokens=1500,
+        max_tokens=4000,
         effort=CLAUDE_EFFORT,
     )
