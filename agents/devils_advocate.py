@@ -5,7 +5,7 @@ that could push the final aggregator off the consensus.
 """
 from __future__ import annotations
 
-from llm_clients import OPUS, claude_complete
+from llm_clients import CLAUDE_EFFORT, OPUS, claude_complete
 from schemas import EventRequest, ForecastDraft
 
 SYSTEM = """You are a red-team forecaster. You will receive:
@@ -52,5 +52,6 @@ async def critique(
         model=OPUS,
         system=SYSTEM,
         user=_user_prompt(event, brief, drafts),
-        max_tokens=1200,
+        max_tokens=1500,
+        effort=CLAUDE_EFFORT,
     )

@@ -10,7 +10,7 @@ import json
 import logging
 import re
 
-from llm_clients import OPUS, claude_complete
+from llm_clients import CLAUDE_EFFORT, OPUS, claude_complete
 from schemas import (
     EventRequest,
     ForecastDraft,
@@ -149,7 +149,8 @@ async def aggregate(
             model=OPUS,
             system=SYSTEM,
             user=_user_prompt(event, brief, drafts, critique),
-            max_tokens=1500,
+            max_tokens=2000,
+            effort=CLAUDE_EFFORT,
         )
         return _safe_final(text, event, drafts)
     except Exception as exc:  # noqa: BLE001

@@ -10,7 +10,7 @@ import json
 import logging
 import re
 
-from llm_clients import GPT5, OPUS, claude_complete, gpt_complete, openai_client
+from llm_clients import CLAUDE_EFFORT, GPT, OPUS, claude_complete, gpt_complete, openai_client
 from schemas import EventRequest, ForecastDraft, MarketProbability, outcome_labels
 
 log = logging.getLogger(__name__)
@@ -110,7 +110,8 @@ async def _opus_forecast(event: EventRequest, brief: str) -> ForecastDraft:
             model=OPUS,
             system=FORECAST_SYSTEM,
             user=_user_prompt(event, brief),
-            max_tokens=1500,
+            max_tokens=2000,
+            effort=CLAUDE_EFFORT,
         )
         return _parse_forecast(text, event, OPUS)
     except Exception as exc:  # noqa: BLE001
@@ -120,18 +121,19 @@ async def _opus_forecast(event: EventRequest, brief: str) -> ForecastDraft:
 
 async def _gpt_forecast(event: EventRequest, brief: str) -> ForecastDraft:
     if openai_client() is None:
-        return _uniform(event, GPT5, "OPENAI_API_KEY not set")
+        return _uniform(event, GPT, "OPENAI_API_KEY not set")
     try:
         text = await gpt_complete(
-            model=GPT5,
+            model=GPT,
             system=FORECAST_SYSTEM,
             user=_user_prompt(event, brief),
-            max_tokens=1500,
+            max_tokens=16000,
+            reasoning_effort="high",
         )
-        return _parse_forecast(text, event, GPT5)
+        return _parse_forecast(text, event, GPT)
     except Exception as exc:  # noqa: BLE001
         log.warning("gpt forecast failed: %s", exc)
-        return _uniform(event, GPT5, str(exc))
+        return _uniform(event, GPT, str(exc))
 
 
 async def forecast_both(event: EventRequest, brief: str) -> list[ForecastDraft]:

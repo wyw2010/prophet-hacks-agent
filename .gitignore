@@ -13,4 +13,6 @@ venv/
 .DS_Store
 predictions.json
 events.json
+events_*.json
+traces/
 *.log
