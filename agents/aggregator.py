@@ -37,9 +37,13 @@ Your job is to produce the FINAL probability distribution. You can:
 
 CALIBRATION DISCIPLINE
 - Probabilities must sum to 1.0 and use the EXACT outcome labels.
-- Clamp each probability to [0.01, 0.99].
 - Prefer the cross-market consensus unless the evidence brief provides specific \
 information beyond what the market has priced in.
+- If the brief shows the event has resolved (final score reported, election \
+called, match concluded with documented outcome), assign 0.95+ to the \
+documented winner and minimal residual to the rest. Past facts do not deserve \
+uncertainty discounting; spreading mass across already-eliminated outcomes is \
+a category error.
 - If the two upstream forecasts agree closely AND the critique is mild, stay \
 near their consensus. If they disagree or the critique is sharp, reason from \
 first principles.

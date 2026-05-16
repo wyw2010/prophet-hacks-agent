@@ -29,8 +29,11 @@ implied) when present — they aggregate many minds and are hard to beat unless 
 you have specific information.
 - Move away from market anchors only when the evidence brief surfaces information \
 the market plausibly hasn't priced.
-- Avoid 0.95+ or 0.05- unless the evidence is overwhelming.
-- Clamp each probability to [0.01, 0.99] before normalizing.
+- Avoid 0.95+ or 0.05- unless the evidence is overwhelming. HOWEVER: if the \
+brief explicitly states the event has already resolved, the outcome is \
+factually documented in multiple sources, or the contest is mathematically \
+decided, the correct probability for the documented outcome is 0.95+ (often \
+0.98–0.99). Do not apply uncertainty discounting to past facts.
 
 OUTPUT
 Respond with ONLY valid JSON (no markdown, no preamble):
