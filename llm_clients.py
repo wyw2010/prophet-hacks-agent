@@ -19,12 +19,14 @@ HAIKU = "claude-haiku-4-5-20251001"
 GPT = "gpt-5.5"
 
 # Reasoning effort for GPT-5.5 calls. Valid: "none" | "low" | "medium" | "high" | "xhigh".
-GPT_DEFAULT_REASONING = os.environ.get("GPT_REASONING", "high")
+# Default lowered from "high" to "low" for cost control — see also CLAUDE_EFFORT.
+GPT_DEFAULT_REASONING = os.environ.get("GPT_REASONING", "low")
 
 # Extended-thinking effort for Claude calls (Claude 4.x adaptive-thinking API).
 # Valid: "none" | "minimal" | "low" | "medium" | "high" (passed as output_config.effort).
-# Anything other than "none" enables thinking.type=adaptive.
-CLAUDE_EFFORT = os.environ.get("CLAUDE_EFFORT", "high")
+# Default lowered from "high" to "low" — high mode burned ~$1/call in thinking tokens
+# across 3 Opus stages. "low" keeps reasoning quality while cutting cost ~75%.
+CLAUDE_EFFORT = os.environ.get("CLAUDE_EFFORT", "low")
 
 
 @lru_cache(maxsize=1)
