@@ -50,6 +50,24 @@ are cheap and informative. Pick keywords broader than the event itself.
 - DO NOT invoke any tool to look up the event's exact ticker — that's circular.
 - For each tool you pick, supply realistic args following its args schema.
 
+TOOL-PICKING HEURISTICS (when to reach for each)
+The full per-tool descriptions and arg schemas are listed below. Quick mental map:
+- Economics / monetary policy / inflation / employment → fred (FRED series IDs)
+- Public-company stocks, IPOs, earnings beats/misses, stock price thresholds \
+→ earnings_data (pass tickers like AAPL, NVDA)
+- Cryptocurrency prices, on-chain → crypto (pass CoinGecko ids: bitcoin, ethereum)
+- US federal legislation (bills, votes) → congress_bills
+- Court cases, rulings, convictions, sentencing, scheduled hearings, SCOTUS \
+→ court_docket (free-text query + type='o' for opinions or 'd' for active dockets)
+- Sports games (h2h) or championship futures → sports_odds (use sport keys ending \
+in _championship_winner for futures)
+- Background on entities, awards, athletes → wikipedia
+- ANY question with non-trivial arithmetic (de-vigging odds, base-rate math, \
+normalizing distributions across many outcomes, monte carlo) → code_execution. \
+Cheap insurance against the forecasters miscounting or hand-waving math.
+
+Use the catalog below to confirm exact arg shapes before emitting your plan.
+
 OUTPUT
 Respond with ONLY valid JSON (no markdown, no preamble):
 {
