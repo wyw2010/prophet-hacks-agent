@@ -101,9 +101,56 @@ def _user_prompt(event: EventRequest, catalog: str) -> str:
 
 
 _JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
+_CODE_FENCE_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.MULTILINE)
 
 
 def _extract_json(text: str) -> dict:
+    """Extract + parse JSON from the model's output.
+
+    Robust to: markdown code fences, leading/trailing prose, and the model
+    accidentally including the trailing brace from a comment block. Tries
+    fences first (cleanest), then a brace-balanced scan, then a greedy
+    fallback regex.
+    """
+    text = text.strip()
+
+    # Strip markdown code fence if present
+    fence = _CODE_FENCE_RE.search(text)
+    if fence:
+        text = fence.group(1).strip()
+
+    # Brace-balanced scan starting at the first {. This handles cases where
+    # there's trailing prose after the JSON object.
+    start = text.find("{")
+    if start != -1:
+        depth = 0
+        in_string = False
+        escape = False
+        for i in range(start, len(text)):
+            ch = text[i]
+            if escape:
+                escape = False
+                continue
+            if ch == "\\":
+                escape = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start : i + 1]
+                    try:
+                        return json.loads(candidate)
+                    except json.JSONDecodeError:
+                        break
+
+    # Last resort: greedy match
     m = _JSON_RE.search(text)
     if not m:
         raise ValueError(f"no JSON object in planner output: {text[:200]!r}")
@@ -112,11 +159,14 @@ def _extract_json(text: str) -> dict:
 
 async def plan(event: EventRequest) -> ResearchPlan:
     catalog = TOOL_CATALOG()
+    # Bumped 2500 -> 6000. With 12 tools, Fermi sub-questions, and verbose
+    # reasoning fields, the planner regularly produced 1500-2200 token outputs.
+    # 2500 was tight enough that any verbosity truncated the JSON mid-args.
     text = await claude_complete(
         model=OPUS,
         system=SYSTEM,
         user=_user_prompt(event, catalog),
-        max_tokens=2500,
+        max_tokens=6000,
     )
     try:
         data = _extract_json(text)
@@ -133,32 +183,64 @@ async def plan(event: EventRequest) -> ResearchPlan:
 
 
 def _fallback_plan(event: EventRequest) -> ResearchPlan:
-    """If the planner fails, default to a broad sweep so we still produce a forecast."""
+    """If the planner fails, default to a broad sweep so we still produce a forecast.
+
+    This fallback is dumb on purpose — no domain branching, just a wide net of
+    tools that are useful regardless of category. Includes code_execution and
+    a category-conditional FRED/earnings call so we don't fully whiff when the
+    planner truncates on a math-heavy or stock-related question.
+    """
     keywords = [w for w in re.findall(r"[A-Za-z]{4,}", event.title)][:4] or [event.title]
+    category = (event.category or "").lower()
+
+    steps: list[ResearchStep] = [
+        ResearchStep(
+            tool="mengye_search",
+            args={"queries": [event.title], "lookback_days": 60, "top_k": 10},
+        ),
+        ResearchStep(
+            tool="claude_news",
+            args={"brief": f"Find evidence relevant to: {event.title}", "max_searches": 3},
+        ),
+        ResearchStep(
+            tool="kalshi_related",
+            args={"keywords": keywords, "limit_per_keyword": 5},
+        ),
+        ResearchStep(
+            tool="polymarket_related",
+            args={"keywords": keywords, "limit_per_keyword": 5},
+        ),
+        ResearchStep(
+            tool="code_execution",
+            args={
+                "task": (
+                    f"Compute base rates and any relevant arithmetic for: "
+                    f"{event.title}. Outcomes: {event.outcomes}."
+                ),
+                "max_uses": 2,
+            },
+        ),
+    ]
+
+    # Category-conditional adds
+    if "econom" in category or "finance" in category or "rate" in category:
+        steps.append(
+            ResearchStep(
+                tool="fred",
+                args={
+                    "series_ids": ["DFEDTARU", "DFF", "CPIAUCSL", "UNRATE", "DGS10"],
+                    "lookback_days": 365,
+                },
+            )
+        )
+
     return ResearchPlan(
-        reasoning="planner fallback: broad sweep across all available tools",
+        reasoning="planner fallback: broad sweep across always-useful tools + category conditionals",
         sub_questions=[
             f"What is the most recent factual status of: {event.title}?",
             "What do prediction markets currently price for this event?",
             "What recent news affects the probability of each outcome?",
             "What is the historical base rate for similar events?",
         ],
-        research_steps=[
-            ResearchStep(
-                tool="mengye_search",
-                args={"queries": [event.title], "lookback_days": 60, "top_k": 10},
-            ),
-            ResearchStep(
-                tool="claude_news",
-                args={"brief": f"Find evidence relevant to: {event.title}", "max_searches": 3},
-            ),
-            ResearchStep(
-                tool="kalshi_related",
-                args={"keywords": keywords, "limit_per_keyword": 5},
-            ),
-            ResearchStep(
-                tool="polymarket_related",
-                args={"keywords": keywords, "limit_per_keyword": 5},
-            ),
-        ],
+        research_steps=steps,
     )
