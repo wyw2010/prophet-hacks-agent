@@ -112,8 +112,11 @@ def import_tools() -> None:
     """
     from tools import (  # noqa: F401
         claude_news,
+        code_execution,
         congress,
+        court_docket,
         crypto,
+        earnings_data,
         fred,
         kalshi_related,
         mengye_search,

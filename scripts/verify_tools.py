@@ -101,6 +101,31 @@ CASES: list[tuple[str, EventRequest, dict]] = [
         FAKE_NBA,
         {"queries": ["NBA Finals 2026 odds"], "lookback_days": 30, "top_k": 5},
     ),
+    # NEW: Anthropic code execution
+    (
+        "code_execution",
+        FAKE_NBA,
+        {
+            "task": (
+                "De-vig the NBA championship odds: OKC -180, SA +350, NYK +600, "
+                "DET +1800, CLE +4500. Return implied probabilities normalized to "
+                "sum to 1."
+            ),
+            "max_uses": 2,
+        },
+    ),
+    # NEW: CourtListener search
+    (
+        "court_docket",
+        FAKE_EMMY,
+        {"query": "Trump immunity", "type": "o", "limit": 5},
+    ),
+    # NEW: Yahoo Finance
+    (
+        "earnings_data",
+        FAKE_NBA,
+        {"tickers": ["AAPL", "NVDA"], "history_days": 30},
+    ),
 ]
 
 
