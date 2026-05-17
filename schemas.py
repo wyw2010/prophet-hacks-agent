@@ -33,6 +33,10 @@ class ResearchStep(BaseModel):
 
 class ResearchPlan(BaseModel):
     reasoning: str
+    # Fermi decomposition: 3-7 specific sub-questions whose answers directly
+    # change the forecast. Threaded into research briefs, the synthesizer's
+    # output, and the forecaster prompts. Optional for backward compat.
+    sub_questions: list[str] = Field(default_factory=list)
     research_steps: list[ResearchStep]
 
 

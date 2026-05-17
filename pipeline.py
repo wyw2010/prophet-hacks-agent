@@ -66,15 +66,16 @@ async def run_pipeline(event: EventRequest) -> tuple[PredictionResponse, dict]:
     research_plan = await plan(event)
     trace["stages"]["plan"] = research_plan.model_dump()
     log.info(
-        "plan: %s (%d steps)",
+        "plan: %s (%d steps, %d sub-questions)",
         research_plan.reasoning,
         len(research_plan.research_steps),
+        len(research_plan.sub_questions),
     )
 
     results = await _do_research(event, research_plan.research_steps)
     trace["stages"]["research"] = [r.model_dump() for r in results]
 
-    brief = await synthesize(event, results)
+    brief = await synthesize(event, results, plan=research_plan)
     trace["stages"]["brief"] = brief
     log.info("brief: %d chars", len(brief))
 

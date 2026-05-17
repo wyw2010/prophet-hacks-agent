@@ -40,6 +40,13 @@ look like.
 
 For "Exactly X" outcomes, same logic — pick the bucket you think will resolve.
 
+REASONING WORKFLOW (Fermi-style)
+Before assigning probabilities, work through the brief's "Sub-question answers" \
+section. For each sub-question, jot down a one-sentence inference: \
+"This evidence points toward outcome <X> because <Y>." Only then commit to \
+probabilities. This keeps your forecast anchored to specific evidence rather \
+than gestalt vibes.
+
 CALIBRATION DISCIPLINE
 - Probabilities MUST sum to 1.0 across all outcomes.
 - Use the EXACT outcome labels supplied. Do not invent or rename outcomes.

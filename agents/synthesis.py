@@ -6,14 +6,15 @@ import logging
 from typing import Iterable
 
 from llm_clients import SONNET, claude_complete
-from schemas import EventRequest, ResearchResult
+from schemas import EventRequest, ResearchPlan, ResearchResult
 
 log = logging.getLogger(__name__)
 
 SYSTEM = """You are the research synthesizer for a forecasting agent.
 
-You receive raw research output from multiple tools and produce a structured \
-evidence brief that the forecaster can act on.
+You receive: (a) raw research output from multiple tools, (b) a list of \
+sub-questions from the Fermi decomposition. You produce a structured evidence \
+brief that the forecaster can act on.
 
 OUTCOME INTERPRETATION
 Outcomes are mutually exclusive — exactly one will resolve true. For \
@@ -22,6 +23,13 @@ BUCKET: the winning outcome is the one whose threshold is the highest value \
 ≤ the resolved actual. When describing directional leans, anchor on the BUCKET \
 each outcome represents, not cumulative probabilities.
 
+SUB-QUESTION ANSWERS (CRITICAL)
+The brief MUST include a "# Sub-question answers" section near the top. For \
+EACH sub-question in the planner's list, write 1-3 sentences with the most \
+specific factual answer you can extract from the research, source-tagged. If \
+the research is silent on a sub-question, say so explicitly — that's useful \
+signal for the forecaster.
+
 OUTPUT FORMAT (markdown, no JSON wrapper):
 
 # Event
@@ -29,6 +37,11 @@ OUTPUT FORMAT (markdown, no JSON wrapper):
 
 # Outcomes to forecast
 <list>
+
+# Sub-question answers
+1. **<sub-question 1>** — <answer with sources>
+2. **<sub-question 2>** — <answer with sources>
+...
 
 # Key facts (high-confidence, factual)
 1. [source] fact
@@ -74,7 +87,17 @@ def _format_research(results: Iterable[ResearchResult]) -> str:
     return "\n".join(chunks)
 
 
-async def synthesize(event: EventRequest, results: list[ResearchResult]) -> str:
+async def synthesize(
+    event: EventRequest,
+    results: list[ResearchResult],
+    plan: ResearchPlan | None = None,
+) -> str:
+    sub_qs = plan.sub_questions if plan else []
+    sub_q_block = (
+        "\n".join(f"  {i+1}. {q}" for i, q in enumerate(sub_qs))
+        if sub_qs
+        else "  (none provided — synthesize the brief without an explicit decomposition)"
+    )
     user = (
         f"EVENT: {event.title}\n"
         f"CATEGORY: {event.category}\n"
@@ -82,6 +105,7 @@ async def synthesize(event: EventRequest, results: list[ResearchResult]) -> str:
         f"CLOSE TIME: {event.close_time}\n"
         f"DESCRIPTION: {event.description or '(none)'}\n"
         f"RULES: {event.rules or '(none)'}\n\n"
+        f"SUB-QUESTIONS TO ANSWER (Fermi decomposition)\n{sub_q_block}\n\n"
         f"RAW RESEARCH\n{_format_research(results)}\n\n"
         f"Produce the evidence brief now."
     )
@@ -89,5 +113,5 @@ async def synthesize(event: EventRequest, results: list[ResearchResult]) -> str:
         model=SONNET,
         system=SYSTEM,
         user=user,
-        max_tokens=3000,
+        max_tokens=4000,
     )

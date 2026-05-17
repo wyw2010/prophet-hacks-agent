@@ -21,6 +21,9 @@ Concentrated distributions are CORRECT for bucket questions. A flat decreasing \
 for using buckets — that's the right framing.
 
 Your job is to find what they missed:
+- Sub-questions from the brief's "Sub-question answers" section that the \
+forecasters under-weighted or skipped entirely
+- Inconsistencies between the two forecasters on the same sub-question
 - Scenarios neither considered (especially low-probability tail outcomes)
 - Evidence that should weigh more or less than they gave it
 - Overconfidence (probabilities too extreme given the actual evidence)

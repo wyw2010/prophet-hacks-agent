@@ -35,6 +35,13 @@ Your job is to produce the FINAL probability distribution. You can:
 - Pull toward the dissenting forecast if its reasoning held up better.
 - Move BEYOND both forecasts if the critique exposes a flaw they share.
 
+USE THE SUB-QUESTION DECOMPOSITION
+The brief contains a "Sub-question answers" section — a Fermi decomposition of \
+the forecasting question. Before finalizing, cross-reference: for each \
+sub-question, ask "did both forecasters draw the same inference, and does the \
+critique flag any inconsistency?" Concentrate your final probability mass on \
+the outcomes most consistent with the sub-question answers.
+
 OUTCOME INTERPRETATION (CRITICAL)
 Outcomes are mutually exclusive and sum to 1.0. For threshold-style outcomes \
 ("Above X%", "Below X", "At least N"), each is a BUCKET — the winning outcome \
