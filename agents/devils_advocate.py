@@ -5,7 +5,7 @@ that could push the final aggregator off the consensus.
 """
 from __future__ import annotations
 
-from llm_clients import CLAUDE_EFFORT, SONNET, claude_complete
+from llm_clients import SONNET, claude_complete
 from schemas import EventRequest, ForecastDraft
 
 SYSTEM = """You are a red-team forecaster. You will receive:
@@ -59,10 +59,12 @@ async def critique(
 ) -> str:
     # Sonnet (not Opus) for the DA stage — critique is mostly pattern-matching
     # on the brief/drafts, not generative reasoning. ~80% cheaper, similar quality.
+    # Also: no extended thinking here. DA produces a short numbered critique;
+    # the analysis is already done upstream. Saves another ~$0.05/event.
     return await claude_complete(
         model=SONNET,
         system=SYSTEM,
         user=_user_prompt(event, brief, drafts),
         max_tokens=4000,
-        effort=CLAUDE_EFFORT,
+        effort="none",
     )
