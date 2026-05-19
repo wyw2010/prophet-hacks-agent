@@ -10,8 +10,10 @@ Two search modes, used together:
 2. **keywords** — client-side fallback. Pages through open markets and matches
    on title/ticker. Slower; use only when the series isn't known.
 
-We deliberately exclude the event's own ticker — using it would just give us
-the benchmark price and yield zero edge.
+By default we INCLUDE the event's own ticker — the live market price for the
+exact question is the strongest calibration anchor available, and the
+forecaster prompt explicitly asks for cross-market anchors. Pass
+``include_self=false`` if you specifically want to exclude it.
 """
 from __future__ import annotations
 
@@ -152,6 +154,10 @@ async def run(event: EventRequest, args: dict, timeout_s: float) -> ResearchResu
     series_tickers: list[str] = args.get("series_tickers") or []
     keywords: list[str] = args.get("keywords") or []
     limit_per_source = int(args.get("limit_per_source", 10))
+    # Default True: the current event's own markets are the strongest
+    # calibration anchor (live market price for the exact question we're
+    # forecasting). Set include_self=False to recover the old behaviour.
+    include_self = bool(args.get("include_self", True))
 
     auto_series = _series_from_ticker(event.event_ticker)
     if auto_series and auto_series not in series_tickers:
@@ -163,7 +169,9 @@ async def run(event: EventRequest, args: dict, timeout_s: float) -> ResearchResu
             summary="no series_tickers or keywords; skipping",
         )
 
-    exclude_event = event.event_ticker
+    # Empty string never matches a real Kalshi event_ticker, so the
+    # equality checks below become no-ops when include_self is True.
+    exclude_event = "" if include_self else event.event_ticker
     items: list[dict] = []
     notes: list[str] = []
 
@@ -222,5 +230,8 @@ async def run(event: EventRequest, args: dict, timeout_s: float) -> ResearchResu
             seen.add(t)
             deduped.append(it)
 
-    summary = f"{len(deduped)} unique related markets (excluded self={exclude_event}). " + " | ".join(notes)
+    self_note = (
+        f"includes self={event.event_ticker}" if include_self else f"excluded self={event.event_ticker}"
+    )
+    summary = f"{len(deduped)} unique markets ({self_note}). " + " | ".join(notes)
     return ResearchResult(tool="kalshi_related", items=deduped, summary=summary)

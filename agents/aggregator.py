@@ -53,6 +53,16 @@ If the two upstream forecasts disagree on this — e.g., one shows a flat \
 decreasing pattern (cumulative interpretation) and the other concentrates on \
 one bucket — the concentrated one is correct. Trust the bucket interpretation.
 
+SELF-CHECK BEFORE RETURNING (threshold buckets):
+After you write your final distribution, if the outcomes look like \
+"Above X", "Above Y", "Above Z" (ascending thresholds) and your probabilities \
+are monotonically decreasing (e.g. 0.60, 0.25, 0.15), you have fallen into the \
+cumulative-interpretation trap. STOP and rewrite: pick the single bucket your \
+best point estimate lands in, give it the bulk of the mass (typically \
+0.50–0.80), and distribute the remainder across the adjacent buckets in \
+proportion to how plausible those alternatives are. Do not return until your \
+distribution is peaked.
+
 CALIBRATION DISCIPLINE
 - Probabilities must sum to 1.0 and use the EXACT outcome labels.
 - Prefer the cross-market consensus unless the evidence brief provides specific \
