@@ -109,6 +109,12 @@ def import_tools() -> None:
     """Import every tool module so its @register decorator runs.
 
     Called once at startup; modules can also be imported individually for tests.
+
+    NOTE: ``polymarket_related`` and ``wikipedia`` are intentionally NOT imported
+    here. Empirically they returned 0 items on 84% / 57% of the eval batch
+    respectively, so we hide them from the planner to reduce noise and pipeline
+    latency. The modules still exist on disk and can be re-imported individually
+    if needed.
     """
     from tools import (  # noqa: F401
         claude_news,
@@ -120,7 +126,5 @@ def import_tools() -> None:
         fred,
         kalshi_related,
         mengye_search,
-        polymarket_related,
         sports,
-        wikipedia,
     )

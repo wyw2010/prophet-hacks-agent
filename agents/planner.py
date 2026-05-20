@@ -45,8 +45,8 @@ or as `mengye_search.queries` so the research is steered.
 GUIDELINES
 - Always consider news search (mengye_search and/or claude_news) unless the \
 event is purely numeric/statistical.
-- Always consider kalshi_related and polymarket_related — cross-market signals \
-are cheap and informative. Pick keywords broader than the event itself.
+- Always consider kalshi_related — cross-market signals are cheap and informative. \
+Pick keywords broader than the event itself.
 - DO NOT invoke any tool to look up the event's exact ticker — that's circular.
 - For each tool you pick, supply realistic args following its args schema.
 
@@ -204,10 +204,6 @@ def _fallback_plan(event: EventRequest) -> ResearchPlan:
         ),
         ResearchStep(
             tool="kalshi_related",
-            args={"keywords": keywords, "limit_per_keyword": 5},
-        ),
-        ResearchStep(
-            tool="polymarket_related",
             args={"keywords": keywords, "limit_per_keyword": 5},
         ),
         ResearchStep(

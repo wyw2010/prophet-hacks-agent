@@ -108,6 +108,67 @@ def _user_prompt(event: EventRequest, brief: str) -> str:
 _JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
+def _safe_json_loads(text: str) -> dict:
+    """Parse JSON, attempting common-LLM-error repairs before giving up.
+
+    Repairs (in order):
+      1. Strip markdown code fences (``` ... ```).
+      2. Remove trailing commas before ``}`` or ``]``.
+      3. Insert missing commas between adjacent ``}{`` / ``]{`` / value-then-key
+         (the actual failure mode we saw was "Expecting ',' delim" from an Opus
+         response that joined fields without a separator).
+
+    If repair still fails, fall back to a regex extraction that pulls every
+    ``{"market": "...", "probability": N}`` pair from the text. This salvages
+    a usable distribution even from severely malformed JSON, instead of
+    dropping the entire forecast to the uniform fallback.
+    """
+    # Happy path: parse as-is.
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Repair pass.
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```\s*$", "", text.strip(), flags=re.MULTILINE).strip()
+    cleaned = re.sub(r",(\s*[}\]])", r"\1", cleaned)                           # trailing commas
+    cleaned = re.sub(r"(})(\s*)(\{)", r"\1,\2\3", cleaned)                     # }{ -> },{
+    cleaned = re.sub(r"(\])(\s*)(\{)", r"\1,\2\3", cleaned)                    # ]{ -> ],{
+    cleaned = re.sub(r"([}\]])(\s*)(\"[\w_]+\"\s*:)", r"\1,\2\3", cleaned)     # }<key>: -> },<key>:
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # Last resort: regex-salvage the probability pairs (order-agnostic).
+    probs = []
+    pair_re = re.compile(
+        r'"market"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"probability"\s*:\s*([\d.eE+-]+)'
+    )
+    pair_re_rev = re.compile(
+        r'"probability"\s*:\s*([\d.eE+-]+)\s*,\s*"market"\s*:\s*"((?:[^"\\]|\\.)*)"'
+    )
+    for mm in pair_re.finditer(cleaned):
+        try:
+            probs.append({"market": mm.group(1), "probability": float(mm.group(2))})
+        except ValueError:
+            continue
+    for mm in pair_re_rev.finditer(cleaned):
+        try:
+            probs.append({"market": mm.group(2), "probability": float(mm.group(1))})
+        except ValueError:
+            continue
+    if probs:
+        rationale_m = re.search(r'"rationale"\s*:\s*"((?:[^"\\]|\\.)*)"', cleaned)
+        confidence_m = re.search(r'"confidence"\s*:\s*"(\w+)"', cleaned)
+        return {
+            "probabilities": probs,
+            "rationale": rationale_m.group(1) if rationale_m else "",
+            "confidence": confidence_m.group(1) if confidence_m else "medium",
+        }
+    raise ValueError("JSON parse failed after repair attempts")
+
+
 def _parse_forecast(text: str, event: EventRequest, model: str) -> ForecastDraft:
     outcomes = outcome_labels(event)
     floor = floor_for_outcomes(len(outcomes))
@@ -115,7 +176,7 @@ def _parse_forecast(text: str, event: EventRequest, model: str) -> ForecastDraft
     m = _JSON_RE.search(text or "")
     if not m:
         raise ValueError("no JSON in forecast output")
-    data = json.loads(m.group(0))
+    data = _safe_json_loads(m.group(0))
 
     raw = data.get("probabilities", [])
     probs: dict[str, float] = {}

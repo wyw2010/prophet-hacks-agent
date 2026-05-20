@@ -122,17 +122,17 @@ def _summarize_market(m: dict, keyword: str | None = None) -> dict:
 
 
 def _has_signal(m: dict) -> bool:
-    """Skip markets that have no useful price OR volume signal — they're noise.
+    """Keep every market Kalshi returns, even untraded ones.
 
-    Common case: brand-new series markets where Kalshi has listed the contract
-    but no one's traded yet (volume=0, yes_ask=null). Returning these to the
-    forecaster just dilutes the brief.
+    Previously this filtered out markets without price/volume/OI to avoid
+    diluting the brief — but the public ``/markets`` list endpoint never
+    populates ``yes_ask``/``last_price``/``volume`` (those live in the
+    per-market ``/orderbook`` endpoint), so the filter was rejecting 100%
+    of legitimately-active markets and returning 0 items to the forecaster.
+    We now return True unconditionally; the forecaster at least gets the
+    candidate outcome set Kalshi has listed for the series.
     """
-    yes_price = m.get("yes_ask") if m.get("yes_ask") is not None else m.get("last_price")
-    has_price = yes_price is not None
-    has_volume = (m.get("volume") or 0) > 0
-    has_oi = (m.get("open_interest") or 0) > 0
-    return has_price or has_volume or has_oi
+    return True
 
 
 @register(
