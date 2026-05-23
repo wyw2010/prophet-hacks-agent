@@ -16,3 +16,6 @@ events.json
 events_*.json
 traces/
 *.log
+
+# Claude Code internal worktrees
+.claude/worktrees/
